@@ -1,31 +1,42 @@
-APK=$1
-PYVER=${PYVER:-"3.8"}
+#!/bin/bash
+
+. pydk-build-common.inc
 
 
-. $(echo -n ../*/bin/activate)
-
-
-export ROOT=$(pwd)
-export PYDK=${PYDK:-$(realpath $ROOT/..)}
 export TOOLCHAIN_HOME=${TOOLCHAIN_HOME:-$(realpath ${PYDK}/emsdk)}
 
-
 #p3webgldisplay.a  pandagles2.a
+PANDA3D_CPP=""
+
 for l in pandagles2.a p3openal_audio.a p3dtool.a p3dtoolconfig.a p3interrogatedb.a p3direct.a\
- pandabullet.a pandaexpress.a panda.a p3framework.a \
- py.panda3d.interrogatedb.cpython-38-wasm.a py.panda3d.core.cpython-38-wasm.a \
- py.panda3d.bullet.cpython-38-wasm py.panda3d.direct.cpython-38-wasm.a
+ pandabullet.a pandaexpress.a panda.a p3framework.a
 do
     lib=${PYDK}/wasm/build-wasm/panda3d-wasm/lib/lib${l}
     if [ -f $lib ]
     then
-        PANDA3D="$PANDA3D $lib"
+        PANDA3D_CPP="$PANDA3D_CPP $lib"
     else
         echo " ERROR : missing link lib $lib"
+        exit 1
     fi
 done
 
-#PANDA3D=$(find ${PYDK}/wasm/build-wasm/panda3d-wasm/lib/|grep a$)
+
+PANDA3D_PY=""
+
+for l in py.panda3d.interrogatedb.cpython-38-wasm.a py.panda3d.core.cpython-38-wasm.a \
+ py.panda3d.bullet.cpython-38-wasm.a py.panda3d.direct.cpython-38-wasm.a
+do
+    lib=${PYDK}/wasm/build-wasm/panda3d-wasm/lib/lib${l}
+    if [ -f $lib ]
+    then
+        PANDA3D_PY="$PANDA3D_PY $lib"
+    else
+        echo " ERROR : missing link lib $lib"
+        exit 1
+    fi
+done
+
 
 APKLIB=${PYDK}/wasm/apkroot-wasm/usr/lib
 
@@ -100,6 +111,7 @@ function do_stdlib
 
         echo " * overwriting with specific stdlib $PYVER platform support (zipimport)"
         /bin/cp -aRfvx ${PYDK}/sources.py/cpython/stdlib/python$PYVER/. assets/python$PYVER/
+        /bin/cp -aRfvx ${PYDK}/sources.py/cpython/wasm/. assets/python$PYVER/
 
         if true
         then
@@ -128,6 +140,59 @@ function do_clean
 }
 
 
+
+
+
+
+if cd $APK 2>/dev/null
+then
+    echo "Project [${1}] found"
+    cd ..
+else
+
+    echo "Initializing project [${1}] with TEMPLATE=$TEMPLATE
+ press <enter> to continue"
+
+    read
+
+    $PIP install $PIPU --upgrade pip
+
+    $PIP install $PIPU cookiecutter
+
+    export COOKIECUTTER_CONFIG=cookiecutter.config
+    mkdir -p templates replay
+
+    cat > $COOKIECUTTER_CONFIG <<END
+    cookiecutters_dir: templates
+    replay_dir: replay
+END
+
+
+    cat > templates/cookiecutter.json <<END
+    {
+      "module_name": "pyweb",
+      "bundle": "org.beerware",
+      "app_name": "EmptyApp",
+      "formal_name": "$1",
+      "_copy_without_render": [
+        "gradlew",
+        "gradle.bat",
+        "gradle/wrapper/gradle-wrapper.properties",
+        "gradle/wrapper/gradle-wrapper.jar",
+        ".gitignore",
+        "*.png"
+      ]
+    }
+END
+
+    cookiecutter $TEMPLATE
+fi
+
+
+
+. ${TOOLCHAIN_HOME}/emsdk_env.sh
+
+
 if cd $1
 then
     if echo $@ |grep clean
@@ -144,11 +209,15 @@ then
 
         mkdir -p assets/python$PYVER/ assets/packages/
 
+        mkdir -p lib
 
         # copy generic python platform support
         cp -Rfxpvu ${PYDK}/sources.py/common/. assets/
 
+# for wapy
         cp -Rfxpu ${PYDK}/wasm/build-wasm/panda3dffi-wasm/direct/ assets/packages/
+# for cpy
+        cp -Rfxpu ${PYDK}/wasm/build-wasm/panda3d-wasm/direct/ assets/packages/
 
         # copy specific python interpreter support
         cp -Rfxpvu ${PYDK}/sources.py/cpython/packages/. assets/packages/
@@ -158,6 +227,8 @@ then
 
         # copy specific C platform support
         cp -fxpvu ${PYDK}/sources.wasm/*.c ./app/src/main/cpp/
+        cp -Rfxpvu ../cpywasm/*.c ../cpywasm/ffi ./app/src/main/cpp/
+
 
         # copy test framework
         cp -Rfxpvu ${PYDK}/wapy-lib/pythons ./assets/
@@ -213,7 +284,6 @@ then
 
         shift 1
 
-        . ${TOOLCHAIN_HOME}/emsdk_env.sh
 
         #export PATH="$EMSDK/upstream/emscripten:$BASEPATH"
 
@@ -239,28 +309,58 @@ then
     fi
 
 EMOPTS="-s ERROR_ON_UNDEFINED_SYMBOLS=1"
-EMOPTS="$EMOPTS -s ENVIRONMENT=web -s USE_ZLIB=1 -s SOCKET_WEBRTC=0 -s SOCKET_DEBUG=1 -s EXPORT_ALL=1"
-EMOPTS="$EMOPTS -s USE_ZLIB=1 -s NO_EXIT_RUNTIME=1 -s MAIN_MODULE=0"
+EMOPTS="$EMOPTS -s ENVIRONMENT=web -s USE_ZLIB=1 -s SOCKET_WEBRTC=0 -s SOCKET_DEBUG=1"
+EMOPTS="$EMOPTS -s USE_ZLIB=1 -s NO_EXIT_RUNTIME=1"
+EMOPTS="$EMOPTS -s EXPORT_ALL=1"
 
-#EMOPTS="$EMOPTS -g0 -O0 -s INVOKE_RUN=0"
-EMOPTS="$EMOPTS -g0 -O3 -s LZ4=0"
+DBG="-g0 -O2 -s LZ4=0 -s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB"
+#DBG="-g4 -O0 -s LZ4=0 -s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB --source-map-base http://localhost:8000"
 
-DBG="-s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB"
 echo "================================================================="
 echo $EMOPTS
+echo "          -------------------------------------------"
+echo $DBG
+echo "================================================================="
+
+#PYROOT=/data/cross/pydk/wasm/build-wasm/python3-wasm
+#PYLIB="$LIBDIR/libpython${PYVER}.so"
+#PYLIB="$PYROOT/libpython${PYVER}.a"
+
+PYLIB=""
+if false
+then
+    for obj in Modules/getbuildinfo.o Parser/acceler.o Parser/grammar1.o Parser/listnode.o Parser/node.o Parser/parser.o Parser/token.o  Parser/myreadline.o Parser/parsetok.o Parser/tokenizer.o Objects/abstract.o Objects/accu.o Objects/boolobject.o Objects/bytes_methods.o Objects/bytearrayobject.o Objects/bytesobject.o Objects/call.o Objects/capsule.o Objects/cellobject.o Objects/classobject.o Objects/codeobject.o Objects/complexobject.o Objects/descrobject.o Objects/enumobject.o Objects/exceptions.o Objects/genobject.o Objects/fileobject.o Objects/floatobject.o Objects/frameobject.o Objects/funcobject.o Objects/interpreteridobject.o Objects/iterobject.o Objects/listobject.o Objects/longobject.o Objects/dictobject.o Objects/odictobject.o Objects/memoryobject.o Objects/methodobject.o Objects/moduleobject.o Objects/namespaceobject.o Objects/object.o Objects/obmalloc.o Objects/picklebufobject.o Objects/rangeobject.o Objects/setobject.o Objects/sliceobject.o Objects/structseq.o Objects/tupleobject.o Objects/typeobject.o Objects/unicodeobject.o Objects/unicodectype.o Objects/weakrefobject.o Python/_warnings.o Python/Python-ast.o Python/asdl.o Python/ast.o Python/ast_opt.o Python/ast_unparse.o Python/bltinmodule.o Python/ceval.o Python/codecs.o Python/compile.o Python/context.o Python/dynamic_annotations.o Python/errors.o Python/frozenmain.o Python/future.o Python/getargs.o Python/getcompiler.o Python/getcopyright.o Python/getplatform.o Python/getversion.o Python/graminit.o Python/hamt.o Python/import.o Python/importdl.o Python/initconfig.o Python/marshal.o Python/modsupport.o Python/mysnprintf.o Python/mystrtoul.o Python/pathconfig.o Python/peephole.o Python/preconfig.o Python/pyarena.o Python/pyctype.o Python/pyfpe.o Python/pyhash.o Python/pylifecycle.o Python/pymath.o Python/pystate.o Python/pythonrun.o Python/pytime.o Python/bootstrap_hash.o Python/structmember.o Python/symtable.o Python/sysmodule.o Python/thread.o Python/traceback.o Python/getopt.o Python/pystrcmp.o Python/pystrtod.o Python/pystrhex.o Python/dtoa.o Python/formatter_unicode.o Python/fileutils.o Python/dynload_shlib.o Python/strdup.o   Modules/config.o Modules/getpath.o Modules/main.o Modules/gcmodule.o Modules/_struct.o  Modules/_queuemodule.o  Modules/parsermodule.o  Modules/mathmodule.o Modules/_math.o  Modules/cmathmodule.o  Modules/_datetimemodule.o  Modules/arraymodule.o  Modules/_contextvarsmodule.o  Modules/_randommodule.o  Modules/_bisectmodule.o  Modules/_json.o  Modules/binascii.o  Modules/selectmodule.o  Modules/fcntlmodule.o  Modules/sha1module.o  Modules/sha256module.o  Modules/sha512module.o  Modules/md5module.o  Modules/termios.o  Modules/sha3module.o  Modules/blake2module.o Modules/blake2b_impl.o Modules/blake2s_impl.o  Modules/unicodedata.o  Modules/zlibmodule.o  Modules/_heapqmodule.o  Modules/_pickle.o  Modules/_posixsubprocess.o  Modules/socketmodule.o  Modules/_hashopenssl.o  Modules/_ssl.o  Modules/_uuidmodule.o  Modules/_ctypes.o Modules/callbacks.o Modules/callproc.o Modules/stgdict.o Modules/cfield.o  Modules/posixmodule.o  Modules/errnomodule.o  Modules/pwdmodule.o  Modules/_sre.o  Modules/_codecsmodule.o  Modules/_weakref.o  Modules/_functoolsmodule.o  Modules/_operator.o  Modules/_collectionsmodule.o  Modules/_abc.o  Modules/itertoolsmodule.o  Modules/atexitmodule.o  Modules/signalmodule.o  Modules/_stat.o  Modules/timemodule.o  Modules/_threadmodule.o  Modules/_localemodule.o  Modules/_iomodule.o Modules/iobase.o Modules/fileio.o Modules/bytesio.o Modules/bufferedio.o Modules/textio.o Modules/stringio.o  Modules/faulthandler.o  Modules/_tracemalloc.o Modules/hashtable.o  Modules/symtablemodule.o  Modules/xxsubtype.o Python/frozen.o
+    do
+        if [ -f $PYROOT/$obj ]
+        then
+            echo " + $obj"
+            PYLIB="$PYLIB $PYROOT/$obj"
+        else
+            echo "failed $obj"
+        fi
+    done
+fi
+
 echo "================================================================="
 # nope
 #  -fPIC -s MAIN_MODULE=1 -s USE_PTHREADS=0
 #
 # -lpython${PYVER} -lvorbis -lvorbisfile -lssl -lcrypto
-        emcc --memory-init-file 0 -static $DBG -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
- -I${INCDIR} -I${INCDIR}/python${PYVER} $EMOPTS \
+#PANDA3D=""
+
+PYLIB="$LIBDIR/libpython3.8.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
+
+em++ $DBG $EMOPTS -fpic -static -o libpp3d.bc -s LLD_REPORT_UNDEFINED=1 \
+ $PANDA3D_PY $PANDA3D_CPP
+
+    em++  -s MAIN_MODULE=1 -static --memory-init-file 0 $DBG -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
+ -I${INCDIR} -I${INCDIR}/python${PYVER} $EMOPTS -s LLD_REPORT_UNDEFINED=1 \
  --preload-file ./assets\
  --preload-file ./lib\
  --preload-file python${PYVER}.zip\
  -o python.html ./app/src/main/cpp/pythonsupport.c\
- -L${LIBDIR} $LIBDIR/libssl.a $LIBDIR/libcrypto.a $LIBDIR/libpython${PYVER}.a \
- -lbullet -logg -lvorbisfile -lvorbis -lfreetype -lharfbuzz $PANDA3D
+ -L. libpp3d.bc $PYLIB\
+ -L${LIBDIR} -lbullet -logg -lvorbisfile -lvorbis -lfreetype -lharfbuzz
 
 
         #./gradlew assembleDebug "$@"

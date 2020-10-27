@@ -1,5 +1,6 @@
 instance = None
 
+
 def send(io,skip=()):
     io.seek(0)
     i = 0
@@ -12,6 +13,9 @@ def send(io,skip=()):
 
 def out(*o, **kw):
     global instance
+    if instance.OFFLINE:
+        return print(*o)
+
     if instance:
         out = StringIO()
         kw["file"] = out

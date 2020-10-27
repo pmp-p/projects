@@ -1,5 +1,8 @@
 #from . import widget
 
+# https://en.wikipedia.org/wiki/DOM_events
+
+
 from pythons.aio import plink
 
 #androidx = plink.androidx
@@ -114,5 +117,5 @@ def addEventListener(target, etype, listener, **kw):
         clients.append( listener )
 
 
-__ALL__ = ['widgets', 'this', 'uinput', 'ButtonRow', 'setPos', 'Events']
+__ALL__ = ['widgets', 'this', 'uinput', 'ButtonRow', 'setPos', 'Events', 'addEventListener']
 

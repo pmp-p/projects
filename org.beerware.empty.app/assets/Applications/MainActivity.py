@@ -28,6 +28,7 @@ class MainActivity:
 
 from android import *
 
+
 async def test_ui():
 
     class print_members(ButtonRow):
@@ -47,8 +48,8 @@ async def test_ui():
 
         async def onclick(self, this, target, hint):
 
-            cc.out(await android.os.Build.DEVICE)
-            cc.out(await android.os.Build.MODEL)
+            #cc.out(await android.os.Build.DEVICE)
+            #cc.out(await android.os.Build.MODEL)
             cc.out(await target.getText(),"via", this)
 
     await uinput(hello_python)
@@ -90,12 +91,8 @@ async def try_me():
 
     await aio.sleep(.5)
 
-    import direct
-    import direct.task
-    import direct.task.TaskManagerGlobal
 
-    import direct.showbase
-    from direct.showbase.ShowBase import ShowBase as ShowBase
+
 
 
     def Cube(size=1.0, geom_name="CubeMaker", gvd_name="Data", gvw_name="vertex"):
@@ -149,7 +146,7 @@ async def try_me():
         return NodePath(node)
 
 
-    class MyApp(ShowBase):
+    class MyApp(p3d.ShowBase):
         instance = None
         frame_time = 1.0 / 60
 
@@ -158,7 +155,7 @@ async def try_me():
             aio.loop.create_task( self.update() )
             while not aio.loop.is_closed():
                 try:
-                    direct.task.TaskManagerGlobal.taskMgr.step()
+                    p3d.task_mgr.step()
                     #embed.step()
                     #await aio.asleep(self.frame_time)
                 except SystemExit:
@@ -213,4 +210,7 @@ async def try_me():
 
     aio.loop.create_task( MyApp.instance.async_loop() )
     self.sb = MyApp.instance
+
+    p3d.init_dev()
+
     return 1
