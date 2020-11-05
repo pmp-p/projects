@@ -70,29 +70,6 @@ function install_run
     fi
 }
 
-function do_pip
-{
-    echo " * processing pip requirement for application [$1]"
-    # pip install -r requirements.txt
-    # pip download --dest ../*/src/pip --no-binary :all: -r requirements-jni.txt
-    mkdir -p assets/packages
-    /bin/cp -Rfxpvu ${PYDK}/assets/python$PYVER/* assets/python$PYVER/
-    echo "==========================================================="
-    echo "${APKUSR}/lib/python${PYVER}/site-packages/ *filtered* => assets/packages/ "
-    echo "==========================================================="
-
-    for req in $(find ${PYDK}/assets/packages/ -maxdepth 1  | egrep -v 'info$|egg$|pth$|txt$|/$')
-    do
-        if find $req -type f|grep so$
-        then
-            echo " * can't add package : $(basename $req) not pure python"
-        else
-            echo " * adding pure-python pip package : $(basename $req)"
-            cp -ru $req assets/packages/
-        fi
-    done
-
-}
 
 function do_stdlib
 {
@@ -110,7 +87,7 @@ function do_stdlib
         rm -rf assets/python$PYVER/lib2to3 assets/python$PYVER/site-packages
 
         echo " * overwriting with specific stdlib $PYVER platform support (zipimport)"
-        /bin/cp -aRfvx ${PYDK}/sources.py/cpython/stdlib/python$PYVER/. assets/python$PYVER/
+        #/bin/cp -aRfvx ${PYDK}/sources.py/cpython/stdlib/python$PYVER/. assets/python$PYVER/
         /bin/cp -aRfvx ${PYDK}/sources.py/cpython/wasm/. assets/python$PYVER/
 
         if true
@@ -262,7 +239,12 @@ then
 
         do_pip ${APK}
 
-        # **************  those patches should not apply to stdlib as it's better ziped *******************
+
+        # copy application files
+        cp -aRfxp ../$1.app/assets/. ./assets/
+
+
+        # **************  those patches should not apply to stdlib as it's better zipped (for now) *****************
         if [ -d patches/. ]
         then
             echo " * applying user patches"
@@ -277,15 +259,13 @@ then
             echo " * stdlib is packed assume patching done"
         else
             echo " * patching stdlib"
-            /bin/cp -aRfx ${PYDK}/sources.py/cpython/stdlib/python${PYVER}/. assets/python${PYVER}/
+            #/bin/cp -aRfx ${PYDK}/sources.py/cpython/stdlib/python${PYVER}/. assets/python${PYVER}/
         fi
 
         do_clean ${APK}
 
         shift 1
 
-
-        #export PATH="$EMSDK/upstream/emscripten:$BASEPATH"
 
     if false
     then
@@ -301,70 +281,37 @@ then
         #EMOPTS="$EMOPTS -s USE_VORBIS=1"
 
         # -s GL_DEBUG=1
-
-        #DBG="$DBG -g4 -O0 -s LLD_REPORT_UNDEFINED=1"
-        DBG="-g0 -O3"
-        DBG="$DBG -s LLD_REPORT_UNDEFINED=1 --source-map-base http://localhost:8000/" # -s EXPORT_ALL=1 "
-
     fi
 
-EMOPTS="-s ERROR_ON_UNDEFINED_SYMBOLS=1"
+EMOPTS="-s ERROR_ON_UNDEFINED_SYMBOLS=1 -s LLD_REPORT_UNDEFINED=1"
 EMOPTS="$EMOPTS -s ENVIRONMENT=web -s USE_ZLIB=1 -s SOCKET_WEBRTC=0 -s SOCKET_DEBUG=1"
 EMOPTS="$EMOPTS -s USE_ZLIB=1 -s NO_EXIT_RUNTIME=1"
 EMOPTS="$EMOPTS -s EXPORT_ALL=1"
 
-DBG="-g0 -O2 -s LZ4=0 -s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB"
+DBG="-g0 -O3 -s LZ4=0 -s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB"
+# -s LLD_REPORT_UNDEFINED=1 --source-map-base http://localhost:8000/"
 #DBG="-g4 -O0 -s LZ4=0 -s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB --source-map-base http://localhost:8000"
 
 echo "================================================================="
 echo $EMOPTS
 echo "          -------------------------------------------"
 echo $DBG
-echo "================================================================="
-
-#PYROOT=/data/cross/pydk/wasm/build-wasm/python3-wasm
-#PYLIB="$LIBDIR/libpython${PYVER}.so"
-#PYLIB="$PYROOT/libpython${PYVER}.a"
-
-PYLIB=""
-if false
-then
-    for obj in Modules/getbuildinfo.o Parser/acceler.o Parser/grammar1.o Parser/listnode.o Parser/node.o Parser/parser.o Parser/token.o  Parser/myreadline.o Parser/parsetok.o Parser/tokenizer.o Objects/abstract.o Objects/accu.o Objects/boolobject.o Objects/bytes_methods.o Objects/bytearrayobject.o Objects/bytesobject.o Objects/call.o Objects/capsule.o Objects/cellobject.o Objects/classobject.o Objects/codeobject.o Objects/complexobject.o Objects/descrobject.o Objects/enumobject.o Objects/exceptions.o Objects/genobject.o Objects/fileobject.o Objects/floatobject.o Objects/frameobject.o Objects/funcobject.o Objects/interpreteridobject.o Objects/iterobject.o Objects/listobject.o Objects/longobject.o Objects/dictobject.o Objects/odictobject.o Objects/memoryobject.o Objects/methodobject.o Objects/moduleobject.o Objects/namespaceobject.o Objects/object.o Objects/obmalloc.o Objects/picklebufobject.o Objects/rangeobject.o Objects/setobject.o Objects/sliceobject.o Objects/structseq.o Objects/tupleobject.o Objects/typeobject.o Objects/unicodeobject.o Objects/unicodectype.o Objects/weakrefobject.o Python/_warnings.o Python/Python-ast.o Python/asdl.o Python/ast.o Python/ast_opt.o Python/ast_unparse.o Python/bltinmodule.o Python/ceval.o Python/codecs.o Python/compile.o Python/context.o Python/dynamic_annotations.o Python/errors.o Python/frozenmain.o Python/future.o Python/getargs.o Python/getcompiler.o Python/getcopyright.o Python/getplatform.o Python/getversion.o Python/graminit.o Python/hamt.o Python/import.o Python/importdl.o Python/initconfig.o Python/marshal.o Python/modsupport.o Python/mysnprintf.o Python/mystrtoul.o Python/pathconfig.o Python/peephole.o Python/preconfig.o Python/pyarena.o Python/pyctype.o Python/pyfpe.o Python/pyhash.o Python/pylifecycle.o Python/pymath.o Python/pystate.o Python/pythonrun.o Python/pytime.o Python/bootstrap_hash.o Python/structmember.o Python/symtable.o Python/sysmodule.o Python/thread.o Python/traceback.o Python/getopt.o Python/pystrcmp.o Python/pystrtod.o Python/pystrhex.o Python/dtoa.o Python/formatter_unicode.o Python/fileutils.o Python/dynload_shlib.o Python/strdup.o   Modules/config.o Modules/getpath.o Modules/main.o Modules/gcmodule.o Modules/_struct.o  Modules/_queuemodule.o  Modules/parsermodule.o  Modules/mathmodule.o Modules/_math.o  Modules/cmathmodule.o  Modules/_datetimemodule.o  Modules/arraymodule.o  Modules/_contextvarsmodule.o  Modules/_randommodule.o  Modules/_bisectmodule.o  Modules/_json.o  Modules/binascii.o  Modules/selectmodule.o  Modules/fcntlmodule.o  Modules/sha1module.o  Modules/sha256module.o  Modules/sha512module.o  Modules/md5module.o  Modules/termios.o  Modules/sha3module.o  Modules/blake2module.o Modules/blake2b_impl.o Modules/blake2s_impl.o  Modules/unicodedata.o  Modules/zlibmodule.o  Modules/_heapqmodule.o  Modules/_pickle.o  Modules/_posixsubprocess.o  Modules/socketmodule.o  Modules/_hashopenssl.o  Modules/_ssl.o  Modules/_uuidmodule.o  Modules/_ctypes.o Modules/callbacks.o Modules/callproc.o Modules/stgdict.o Modules/cfield.o  Modules/posixmodule.o  Modules/errnomodule.o  Modules/pwdmodule.o  Modules/_sre.o  Modules/_codecsmodule.o  Modules/_weakref.o  Modules/_functoolsmodule.o  Modules/_operator.o  Modules/_collectionsmodule.o  Modules/_abc.o  Modules/itertoolsmodule.o  Modules/atexitmodule.o  Modules/signalmodule.o  Modules/_stat.o  Modules/timemodule.o  Modules/_threadmodule.o  Modules/_localemodule.o  Modules/_iomodule.o Modules/iobase.o Modules/fileio.o Modules/bytesio.o Modules/bufferedio.o Modules/textio.o Modules/stringio.o  Modules/faulthandler.o  Modules/_tracemalloc.o Modules/hashtable.o  Modules/symtablemodule.o  Modules/xxsubtype.o Python/frozen.o
-    do
-        if [ -f $PYROOT/$obj ]
-        then
-            echo " + $obj"
-            PYLIB="$PYLIB $PYROOT/$obj"
-        else
-            echo "failed $obj"
-        fi
-    done
-fi
 
 echo "================================================================="
-# nope
-#  -fPIC -s MAIN_MODULE=1 -s USE_PTHREADS=0
-#
-# -lpython${PYVER} -lvorbis -lvorbisfile -lssl -lcrypto
-#PANDA3D=""
 
-PYLIB="$LIBDIR/libpython3.8.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
+    PYLIB="$LIBDIR/libpython3.8.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
 
-em++ $DBG $EMOPTS -fpic -static -o libpp3d.bc -s LLD_REPORT_UNDEFINED=1 \
- $PANDA3D_PY $PANDA3D_CPP
+    em++ $DBG $EMOPTS -fpic -static -o libpp3d.bc $PANDA3D_CPP $PANDA3D_PY
 
-    em++  -s MAIN_MODULE=1 -static --memory-init-file 0 $DBG -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
- -I${INCDIR} -I${INCDIR}/python${PYVER} $EMOPTS -s LLD_REPORT_UNDEFINED=1 \
+    emcc -s MAIN_MODULE=1 -static --memory-init-file 0 $DBG $EMOPTS \
+ -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
+ -I${INCDIR} -I${INCDIR}/python${PYVER} \
  --preload-file ./assets\
  --preload-file ./lib\
  --preload-file python${PYVER}.zip\
  -o python.html ./app/src/main/cpp/pythonsupport.c\
  -L. libpp3d.bc $PYLIB\
  -L${LIBDIR} -lbullet -logg -lvorbisfile -lvorbis -lfreetype -lharfbuzz
-
-
-        #./gradlew assembleDebug "$@"
-        #cp -uv ./app/src/main/res/index.html ./
 
         if echo $@|grep -q build
         then

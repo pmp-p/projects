@@ -1,0 +1,4 @@
+numpy
+pyjnius
+plyer
+pyglet

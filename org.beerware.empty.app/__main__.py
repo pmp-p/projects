@@ -8,7 +8,8 @@ print('Hi')
 os.chdir(sys.argv[-1])
 
 
-PYDK="/data/cross/pydk"
+PYDK= os.environ.get('PYDK',"/data/cross/pydk")
+
 
 ASSETS = "./assets"
 
@@ -29,7 +30,7 @@ def STI():
 ver = f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
 for notwanted in (
     f'/lib/python3{sys.version_info.minor}.zip',
-    f'.local/lib/python3.{sys.version_info.minor}/site-packages',
+    f'local/lib/python3.{sys.version_info.minor}/site-packages',
     f'{ver}/site-packages',
     f'/python{ver}',
     f'/python3.{sys.version_info.minor}',
@@ -43,33 +44,38 @@ for notwanted in (
     while len(todel):
         sys.path.remove(todel.pop())
 
-if not os.path.isfile( rootfn(f'python3.{sys.version_info.minor}.zip') ):
+stdlib = f'python3.{sys.version_info.minor}.zip'
+
+if not os.path.isfile( stdlib ):
     print(" -- stdlib zip archive is missing --")
     sys.path.append(f"{PYDK}/host/lib/python3.{sys.version_info.minor}")
     sys.path.append(f"{PYDK}/wapy-lib/readline")
 else:
-    sys.path.append(f'./python3.{sys.version_info.minor}.zip')
+    sys.path.append( stdlib)
+    #sys.path.append('/')
 
 sys.path.append('./assets/packages')
 sys.path.append('/data/git/aioprompt')
 sys.path.append('/data/git/wapy-lib/cpython-usocket')
-sys.path.append('/data/git/x-python')
+sys.path.append('/data/git/aiovm')
+
 
 
 print(sys.path)
+#raise SystemExit
+
 
 # to get the one from site-packages
 import panda3d
 
 import pythons
-
+import pythons.aio
 
 print("\n"*4)
 
-import uasyncio
 
 if 0:
-
+    import uasyncio
     import oscpy
     import oscpy.parser
 
@@ -125,13 +131,12 @@ if 0:
 
     aio.loop.run_forever()
 
-
-
     print("\n"*4)
 
     raise SystemExit
 
-if 1:
+if 0:
+    sys.path.append('/data/git/x-python')
 
     print("\n"*8)
     main_mod = sys.modules['__main__']
@@ -176,67 +181,70 @@ if 1:
 
     print("\n"*8)
     raise SystemExit
-# ================= async repl input ==================================
-import aioprompt
-import traceback
 
-def custom_excepthook(etype, e, tb):
-    print(f"custom_excepthook test :", readline.get_line_buffer() )
-    if isinstance(e, NameError):
-        print("ne:",str(e))
-        return True
-    return False
+if 0:
+    # ================= async repl input ==================================
 
-aioprompt.custom_excepthook =  custom_excepthook
+    import aioprompt
+    import traceback
 
-# this will cause every input to raise syntax errors
-import readline
+    def custom_excepthook(etype, e, tb):
+        print(f"custom_excepthook test :", readline.get_line_buffer() )
+        if isinstance(e, NameError):
+            print("ne:",str(e))
+            return True
+        return False
 
-def hook():
-    readline.insert_text(aioprompt.inputprompt)
-    readline.redisplay()
+    aioprompt.custom_excepthook =  custom_excepthook
 
-readline.set_pre_input_hook(hook)
+    # this will cause every input to raise syntax errors
+    import readline
+
+    def hook():
+        readline.insert_text(aioprompt.inputprompt)
+        readline.redisplay()
+
+    readline.set_pre_input_hook(hook)
 
 
-async def inputhook(index, retry):
-    bytecode = None
+    async def inputhook(index, retry):
+        bytecode = None
 
-    try:
-        code = readline.get_history_item(index)[aioprompt.inputindent:]
-        if code:
-            if code=='q':
-                aio.loop.call_soon(aio.loop.stop)
-                await aio.sleep(0)
+        try:
+            code = readline.get_history_item(index)[aioprompt.inputindent:]
+            if code:
+                if code=='q':
+                    aio.loop.call_soon(aio.loop.stop)
+                    await aio.sleep(0)
+                    sys.exit(0)
+                    return
+
+                bytecode = compile(code, "<stdin>", "exec")
+
+        except Exception as e:
+            print('CODE[rewrite]:',e,"\n",code)
+            for i,l in enumerate(code.split('\n')):
+                print(i,l)
+            try:
+                await retry(index, aioprompt.inputindent)
+            except SystemExit:
                 sys.exit(0)
-                return
+            return
 
-            bytecode = compile(code, "<stdin>", "exec")
-
-    except Exception as e:
-        print('CODE[rewrite]:',e,"\n",code)
-        for i,l in enumerate(code.split('\n')):
-            print(i,l)
-        try:
-            await retry(index, aioprompt.inputindent)
-        except SystemExit:
-            sys.exit(0)
-        return
-
-    if bytecode:
-        try:
-            exec(bytecode, __import__('__main__').__dict__, globals())
-        except SystemExit:
-            sys.exit(0)
+        if bytecode:
+            try:
+                exec(bytecode, __import__('__main__').__dict__, globals())
+            except SystemExit:
+                sys.exit(0)
 
 
 
-aioprompt.inputprompt = "❯❯❯ "
-aioprompt.inputindent = len(aioprompt.inputprompt)
-aioprompt.inputhook = inputhook
+    aioprompt.inputprompt = "$$❯ "
+    aioprompt.inputindent = len(aioprompt.inputprompt)
+    aioprompt.inputhook = inputhook
 
 import pyreadline
-
+import select
 
 
 try:
@@ -247,7 +255,7 @@ except Exception as e:
         def process_touch(self,*a,**k):
             pass
 
-class ReadInput(pyreadline.ReadLine, ReadTouch):
+class ReadInput(pyreadline.ReadLine, ReadTouch, aio.runnable):
     MB = {
        'B' : '',
        'C':  0,
@@ -263,7 +271,7 @@ class ReadInput(pyreadline.ReadLine, ReadTouch):
         oldpos = self.caret
         print(end='\r')
         if c==13:
-            with open("/stdin","w") as f:
+            with open("dev/fd/0","w") as f:
                 f.write(self.line+"\n")
             print('>>>', self.line,end='\r\n')
         else:
@@ -272,9 +280,10 @@ class ReadInput(pyreadline.ReadLine, ReadTouch):
         self.process_char( bytes( [c] ) )
 
         if c==13:
-            embed.run('/stdin')
+            embed.run('dev/fd/0')
             print()
-        print('>>>', self.line, end='')
+
+        print('$>>', self.line, end='')
 
         if oldpos > self.caret:
             #embed.log('cursor move left %s > %s' % (oldpos,self.caret) )
@@ -286,64 +295,43 @@ class ReadInput(pyreadline.ReadLine, ReadTouch):
         sys.stdout.flush()
 
 
-class input:
+    def getc(self):
+        key=b''
+        if select.select([sys.__stdin__,],[],[],0.0)[0]:
+            if self.kbuf:
+                key = self.kbuf[0:1]
+                self.kbuf = self.kbuf[1:]
+            else:
+                key = os.read(0, 32)
+        return key
 
-    def __init__(self, fd):
-        aio.inputs[fd] = ReadInput()
 
-    async def run(self):
-        pass
+    async def run(self, fd, **kw):
+        aio.inputs[fd] = self
+        self.kbuf = []
+        aio.proc(self).rt(2)
 
-aio.inputs = {}
-input(0)
+        #while not (await aio.proc(self)):
+        while not (await self):
+            c=self.getc()
+            if c:
+                print("316:",c)
 
+        #    __UPY__
+        #    def getc():
+        #        if not select.select([sys.stdin,],[],[],0.0)[0]:
+        #            return None
+        #         key = select.readall(sys.stdin)
 
+        #    if not msvcrt.kbhit():
+        #        return None
 
 
 #============================= main ==============================
 
 
-class tui:
-    # use direct access, it is absolute addressing on raw terminal.
-    out = sys.__stdout__.write
-
-    # save cursor
-    def __enter__(self):
-        self.out("\x1b7\x1b[?25l")
-        return self
-
-    # restore cursor
-    def __exit__(self, *tb):
-        self.out("\x1b8\x1b[?25h")
-
-    def __call__(self, *a, **kw):
-        self.out("\x1b[{};{}H{}".format(kw.get("z", 12), kw.get("x", 40), " ".join(a)))
-
-
-tui.instance = tui()
-
-
-async def main(argc, argv, env):
-    import time
-
-    def box(t,x,y,z):
-        lines = t.split('\n')
-        fill = "─"*(len(t))
-        if z>1:
-            print( '┌%s┐' % fill, x=70, z=z-1)
-        for t in lines:
-            print( '│%s│' % t, x=70, z=2)
-            z+=1
-        print( '└%s┘' % fill, x=70, z=z)
-
-    while not aio.loop.is_closed():
-        with tui.instance as print:
-            # draw a clock
-            t =  "%2d:%2d:%2d ☢99%%" % time.localtime()[3:6]
-            box(t,x=70,y=0,z=2)
-
-        await aio.sleep(1)
-        sys.stdout.flush()
+# menu bar
+import aiovm.tui as tui
 
 #=====================================================
 
@@ -355,8 +343,41 @@ def test():
 
 builtins.test = test
 
-sys.ps1 = ""
+#sys.ps1 = ""
+#aio.run( main(0,[],{}) )
 
-aioprompt.schedule(aioprompt.step, 1)
 
-aio.run( main(0,[],{}) )
+aio.inputs = {  }
+
+aio.service( ReadInput() , 0 )
+
+
+def local_echo(fd, enabled):
+    import termios
+    (iflag, oflag, cflag, lflag, ispeed, ospeed, cc) = termios.tcgetattr(fd)
+
+    if enabled:
+        lflag |= termios.ECHO
+    else:
+        lflag &= ~termios.ECHO
+
+    new_attr = [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+    termios.tcsetattr(fd, termios.TCSANOW, new_attr)
+
+
+if 0:
+    # this one automatically handle aio loop
+    import aiovm.repl as repl
+else:
+    tui.block.out('\x1b[12l\r\nEcho off\r\n')
+    local_echo( sys.__stdin__.fileno(), False)
+
+    try:
+        aio.loop.run_forever()
+    except KeyboardInterrupt:
+        aio.loop.call_soon( aio.loop.stop )
+        aio.loop.run_forever()
+        tui.block.out('\x1b[12h')
+local_echo( sys.__stdin__.fileno(), True)
+
+

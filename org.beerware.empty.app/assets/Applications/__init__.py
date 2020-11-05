@@ -3,6 +3,7 @@
 
 def onCreate(self, pyvm):
     print("Applications.onCreate", pyvm)
+    from . import MainActivity
 
 
 def onStart(self, pyvm):

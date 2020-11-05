@@ -2,35 +2,37 @@ import os
 import embed
 import time as Time
 
-try:
-    from . import ControlChannel as cc
-except Exception as e:
-    #sys.print_exception(e)
-    embed.log(str(e))
+if 1:
+    try:
+        from . import ControlChannel as cc
+    except Exception as e:
+        embed.log(str(e))
+        sys.print_exception(e)
 
+    if os.path.exists('/data/data/board'):
+        #home sweet home (h3droid boards)
+        ccip = "192.168.0.254"
+    else:
+        ccip = "82.65.46.75"
 
-if os.path.exists('/data/data/board'):
-    #home sweet home (h3droid boards)
-    ccip = "192.168.0.254"
+    cc.instance = cc.client(ccip, 6667, nick="apk_" + hex(int(str(Time.time()).replace(".", "")))[2:], channels=["#android"])
+    aio.service(cc.instance)
+    cc.self = sys.modules[__name__]
 else:
-    ccip = "82.65.46.75"
-
-
-cc.instance = cc.client(ccip, 6667, nick="apk_" + hex(int(str(Time.time()).replace(".", "")))[2:], channels=["#android"])
-
-aio.service(cc.instance)
+    class cc:
+        out = pdb
 
 _ = None
+
 
 class MainActivity:
     pass
 
+if __ANDROID__:
+    from android import *
 
-from android import *
 
-
-async def test_ui():
-
+async def __main__():
     class print_members(ButtonRow):
         text = "Load a Panda3D widget"
 
@@ -58,16 +60,9 @@ async def test_ui():
     await uinput(print_members)
 
 
-async def __main__():
-    global self, cc
-
-    self = sys.modules['Applications.MainActivity']
-    cc.self =  self
-
-    await test_ui()
-
 
 async def try_me():
+    global p3d
 
     import builtins
     #builtins.pdb = cc.out
@@ -78,7 +73,7 @@ async def try_me():
 
     pdb("Started panda3d on", panda3d.view)
 
-    await aio.sleep(.5)
+    #await aio.sleep(0)
 
     p3d.loadPrcFileData("", "load-display pandagles2")
     p3d.loadPrcFileData("", "win-origin -2 -2")
@@ -89,10 +84,24 @@ async def try_me():
     p3d.loadPrcFileData("", "show-frame-rate-meter #t")
 
 
-    await aio.sleep(.5)
+    #await aio.sleep(0)
+
+    embed.jseval('''
+loadData(`<html>
+<style>
+element {
+    box-sizing: border-box;
+}
+body {
+    background-color: transparent;
+}
+</style>
+
+<html>`,"text/html; charset=utf-8", "utf-8")
 
 
 
+''')
 
 
     def Cube(size=1.0, geom_name="CubeMaker", gvd_name="Data", gvw_name="vertex"):

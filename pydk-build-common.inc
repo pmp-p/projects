@@ -3,10 +3,15 @@
 APK=$1
 PYVER=${PYVER:-"3.8"}
 
+
 export ROOT=$(pwd)
 
 # TODO: replace by a download of pydk-min
 export PYDK=${PYDK:-$(realpath $ROOT/..)}
+
+
+export PYTHONDONTWRITEBYTECODE=1
+
 
 
 if [ -f ${PYDK}/aosp/bin/activate ]
@@ -63,6 +68,32 @@ Build config
 
 "
 
+
+
+
+function do_pip
+{
+    echo " * processing pip requirement for application [$1]"
+    # pip install -r requirements.txt
+    # pip download --dest ../*/src/pip --no-binary :all: -r requirements-jni.txt
+    mkdir -p assets/packages
+    /bin/cp -Rfxpvu ${PYDK}/assets/python$PYVER/* assets/python$PYVER/
+    echo "==========================================================="
+    echo "${APKUSR}/lib/python${PYVER}/site-packages/ *filtered* => assets/packages/ "
+    echo "==========================================================="
+
+    for req in $(find ${PYDK}/assets/packages/ -maxdepth 1  | egrep -v 'info$|egg$|pth$|txt$|/$')
+    do
+        if find $req -type f|grep so$
+        then
+            echo " * can't add package : $(basename $req) not pure python"
+        else
+            echo " * adding pure-python pip package : $(basename $req)"
+            cp -ru $req assets/packages/
+        fi
+    done
+
+}
 
 
 
