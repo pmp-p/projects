@@ -1,10 +1,13 @@
 # https://developer.android.com/guide/components/activities/activity-lifecycle
 
+import os
+import sys
+
 
 def onCreate(self, pyvm):
-    print("Applications.onCreate", pyvm)
-    from . import MainActivity
-
+    print("Applications.onCreate(Begin)", pyvm)
+    aio.create_task(MainActivity.main(*sys.argv,**os.environ))
+    print("Applications.onCreate(End)", pyvm)
 
 def onStart(self, pyvm):
     print("Applications.onStart", pyvm)
@@ -26,5 +29,9 @@ def onDestroy(self, pyvm):
     print("Applications.onDestroy", pyvm)
 
 print('Applications ready')
+
+from . import MainActivity
+
+print('Applications.MainActivity ready')
 
 

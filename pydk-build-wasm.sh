@@ -11,8 +11,6 @@ export TOOLCHAIN_HOME=${TOOLCHAIN_HOME:-$(realpath ${PYDK}/emsdk)}
 #p3webgldisplay.a  pandagles2.a
 PANDA3D_CPP=""
 
-LIBVER=39
-
 for l in pandagles2.a p3openal_audio.a p3dtool.a p3dtoolconfig.a p3interrogatedb.a p3direct.a\
  pandabullet.a pandaexpress.a panda.a p3framework.a
 do
@@ -210,15 +208,7 @@ then
         cp -Rfxpvu ${PYDK}/sources.py/cpython/packages/. assets/packages/
 
         # copy specific python platform support
-        for ver in 8 9
-        do
-            #cp -Rvfxpu ${PYDK}/sources.py/cpython/wasm/3.${ver}/. assets/
-            echo "FIXME use APK-ZIP as stdlib"
-        done
-
-        # copy specific C platform support
-        cp -fxpvu ${PYDK}/sources.wasm/*.c ./app/src/main/cpp/
-        cp -Rfxpvu ../cpywasm/*.c ../cpywasm/ffi ./app/src/main/cpp/
+        echo "FIXME use APK-ZIP as stdlib"
 
         # copy test framework
         cp -Rfxpvu ${PYDK}/wapy-lib/pythons ./assets/
@@ -257,11 +247,12 @@ then
 
 
         # **************  those patches should not apply to stdlib as it's better zipped (for now) *****************
-        if [ -d patches/. ]
+        if [ -d ../$APK.app/patches ]
         then
-            echo " * applying user patches"
-            cp -Rfvpvu patches/. assets/
+            echo " Applying user patches"
+            cp -Rfvpxu ../$APK.app/patches/. ./assets/
         fi
+
 
 
         # maybe stdlib not zipped ( testsuite case )

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 reset
 
 export LIBEXT=so
@@ -104,6 +104,7 @@ END
     cat > templates/cookiecutter.json <<END
     {
       "module_name": "empty",
+      "pyver" : "${PYVER}",
       "bundle": "org.beerware",
       "app_name": "EmptyApp",
       "formal_name": "org.beerware.empty",
@@ -171,10 +172,27 @@ then
         do_stdlib ${APK}
 
 
+        # copy generic python platform support
+        cp -Rfxpvu ${PYDK}/sources.py/common/. assets/
+
+
+        # copy specific python interpreter support
+        cp -Rfxpvu ${PYDK}/sources.py/cpython/packages/. assets/packages/
+
+        # copy test framework
+        cp -Rfxpvu ${PYDK}/wapy-lib/pythons ./assets/
+
+        # copy readline support
+        cp -fxpvu ${PYDK}/wapy-lib/readline/pyreadline.py ./assets/
+
+        # copy application files
         cp -Rfvpxu ../$APK.app/assets/. ./assets/
 
-        cp -Rfvpxu ${PYDK}/wapy-lib/pythons ./assets/
+        # copy simulator support
+        #cp -Rfvpxu ../$APK.app/__main__.py ./
 
+
+        # **************  those patches should not apply to stdlib as it's better zipped (for now) *****************
         if [ -d ../$APK.app/patches ]
         then
             echo " Applying user patches"

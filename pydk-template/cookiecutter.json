@@ -2,6 +2,7 @@
   "module_name": "empty",
   "bundle": "org.beerware",
   "app_name": "EmptyApp",
+  "pyver" : "3.9",
   "formal_name": "org.beerware.empty",
   "_copy_without_render": [
     "gradlew",

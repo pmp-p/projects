@@ -6,7 +6,7 @@
 project(app)
 cmake_minimum_required(VERSION 3.4.1)
 
-set(PYVER 3.9)
+set(PYVER {{ cookiecutter.pyver }})
 set(PYTHON python${PYVER})
 set(ANDROID_STL "c++_shared")
 

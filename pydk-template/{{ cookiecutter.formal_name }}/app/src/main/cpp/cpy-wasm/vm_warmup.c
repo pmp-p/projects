@@ -40,7 +40,7 @@ LOG_I("VMthread starting");
 
 
     LOG_V("Setting paths ... ");
-    setenv("PYTHONPATH", "/python3.9.zip:/assets/packages:/assets/python3.9:/assets", 1);
+    setenv("PYTHONPATH", "/python{{ cookiecutter.pyver }}.zip:/assets/packages:/assets/python{{ cookiecutter.pyver }}:/assets", 1);
     fprintf(stdout,"PYTHONPATH[%s]", getenv("PYTHONPATH") );
 
 

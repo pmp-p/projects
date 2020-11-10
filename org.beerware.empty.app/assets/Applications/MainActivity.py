@@ -32,7 +32,9 @@ if __ANDROID__:
     from android import *
 
 
-async def __main__():
+async def main(*argv,**env):
+    print("Applications.onCreate(async)")
+
     class print_members(ButtonRow):
         text = "Load a Panda3D widget"
 
@@ -61,7 +63,7 @@ async def __main__():
 
 
 
-async def try_me():
+async def test():
     global p3d
 
     import builtins
@@ -86,7 +88,8 @@ async def try_me():
 
     #await aio.sleep(0)
 
-    embed.jseval('''
+    if __EMSCRIPTEN__:
+        embed.jseval('''
 loadData(`<html>
 <style>
 element {

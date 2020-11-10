@@ -89,7 +89,7 @@ main_iteration(void) {
 
 
 // python version lib name, to use directly python3.? folders found in prefix/lib
-#define python "python3.9"
+#define python "python{{ cookiecutter.pyver }}"
 
 // stdlib archive path (apk==zip)
 #define apk_path "/pyweb.zip"

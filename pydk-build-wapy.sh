@@ -1,3 +1,5 @@
+#!/bin/bash
+
 APK=$1
 PYVER=${PYVER:-"3.9"}
 
@@ -8,8 +10,6 @@ PYVER=${PYVER:-"3.9"}
 export ROOT=$(pwd)
 export PYDK=${PYDK:-$(realpath $ROOT/..)}
 export TOOLCHAIN_HOME=${TOOLCHAIN_HOME:-$(realpath ${PYDK}/emsdk)}
-
-LIBVER=39
 
 #p3webgldisplay.a  pandagles2.a
 for l in pandagles2.a p3openal_audio.a p3dtool.a p3dtoolconfig.a p3interrogatedb.a p3direct.a\

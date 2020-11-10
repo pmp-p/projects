@@ -1,10 +1,12 @@
-#!/bin/sh
+#sourced
 
 APK=$1
 PYVER=${PYVER:-"3.8"}
 
 
 export ROOT=$(pwd)
+
+export LIBVER=$(echo  $PYVER|cut -c1,3)
 
 # TODO: replace by a download of pydk-min
 export PYDK=${PYDK:-$(realpath $ROOT/..)}
