@@ -84,7 +84,7 @@ function do_pip
 
     for req in $(find ${PYDK}/assets/packages/ -maxdepth 1  | egrep -v 'info$|egg$|pth$|txt$|/$')
     do
-        if find $req -type f|grep so$
+        if find $req -type f|grep ${LIBEXT}$
         then
             echo " * can't add package : $(basename $req) not pure python"
         else

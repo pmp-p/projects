@@ -1,5 +1,5 @@
 APK=$1
-PYVER=${PYVER:-"3.8"}
+PYVER=${PYVER:-"3.9"}
 
 
 . $(echo -n ../*/bin/activate)
@@ -9,12 +9,13 @@ export ROOT=$(pwd)
 export PYDK=${PYDK:-$(realpath $ROOT/..)}
 export TOOLCHAIN_HOME=${TOOLCHAIN_HOME:-$(realpath ${PYDK}/emsdk)}
 
+LIBVER=39
 
 #p3webgldisplay.a  pandagles2.a
 for l in pandagles2.a p3openal_audio.a p3dtool.a p3dtoolconfig.a p3interrogatedb.a p3direct.a\
  pandabullet.a pandaexpress.a panda.a p3framework.a \
- py.panda3d.interrogatedb.cpython-38-wasm.a py.panda3d.core.cpython-38-wasm.a \
- py.panda3d.bullet.cpython-38-wasm py.panda3d.direct.cpython-38-wasm.a
+ py.panda3d.interrogatedb.cpython-${LIBVER}-wasm.a py.panda3d.core.cpython-${LIBVER}-wasm.a \
+ py.panda3d.bullet.cpython-${LIBVER}-wasm py.panda3d.direct.cpython-${LIBVER}-wasm.a
 do
     lib=${PYDK}/wasm/build-wasm/panda3dffi-wasm/lib/lib${l}
     if [ -f $lib ]
@@ -58,7 +59,7 @@ function install_run
 
  PYTHONPATH=. \
  LD_LIBRARY_PATH=${PYDK}/host/lib:${PYDK}/host/lib64:${LD_LIBRARY_PATH} \
- ${PYDK}/host/bin/python3.8 -u -B -m pythons.js  -d $(pwd) ${WEB:-"8000"}
+ ${PYDK}/host/bin/python3.9 -u -B -m pythons.js  -d $(pwd) ${WEB:-"8000"}
         echo "bye"
     fi
 }
@@ -92,7 +93,7 @@ function do_pip
 function do_stdlib
 {
 
-    if [ -f python3.8.zip ]
+    if [ -f python3.9.zip ]
     then
         echo stdlib zip ready
     else
@@ -111,8 +112,8 @@ function do_stdlib
         if false
         then
             WD=$(pwd)
-            cd assets/python3.8
-            zip "${WD}/python3.8.zip" -r .
+            cd assets/python3.9
+            zip "${WD}/python3.9.zip" -r .
             cd "${WD}"
             rm -rf assets/python$PYVER
         else
@@ -198,7 +199,7 @@ then
             cp -Rfvpvu patches/. assets/
         fi
 
-        if [ -f assets/python3.8.zip ]
+        if [ -f assets/python3.9.zip ]
         then
             echo " * stdlib is packed assume patching done"
         else
@@ -244,12 +245,12 @@ DBG="-s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMO
 # nope
 #  -fPIC -s MAIN_MODULE=1 -s USE_PTHREADS=0
 #
-# -lpython3.8 -lvorbis -lvorbisfile -lssl -lcrypto
+# -lpython3.9 -lvorbis -lvorbisfile -lssl -lcrypto
         emcc -static $DBG -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
- -I${INCDIR} -I${INCDIR}/python3.8 $EMOPTS \
- --preload-file ./assets@/assets --preload-file ./lib@/lib --preload-file python3.8.zip\
+ -I${INCDIR} -I${INCDIR}/python3.9 $EMOPTS \
+ --preload-file ./assets@/assets --preload-file ./lib@/lib --preload-file python3.9.zip\
  -o python.html ./app/src/main/cpp/pythonsupport.c\
- -L${LIBDIR} $LIBDIR/libssl.a $LIBDIR/libcrypto.a  $LIBDIR/libpython3.8.a \
+ -L${LIBDIR} $LIBDIR/libssl.a $LIBDIR/libcrypto.a  $LIBDIR/libpython3.9.a \
  -lbullet -logg -lvorbisfile -lvorbis -lfreetype -lharfbuzz $PANDA3D
 
 

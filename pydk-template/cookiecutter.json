@@ -1,0 +1,14 @@
+{
+  "module_name": "empty",
+  "bundle": "org.beerware",
+  "app_name": "EmptyApp",
+  "formal_name": "org.beerware.empty",
+  "_copy_without_render": [
+    "gradlew",
+    "gradle.bat",
+    "gradle/wrapper/gradle-wrapper.properties",
+    "gradle/wrapper/gradle-wrapper.jar",
+    ".gitignore",
+    "*.png"
+  ]
+}

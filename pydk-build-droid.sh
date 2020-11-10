@@ -1,6 +1,8 @@
 #!/bin/sh
 reset
 
+export LIBEXT=so
+
 . pydk-build-common.inc
 
 

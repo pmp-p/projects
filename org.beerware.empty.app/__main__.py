@@ -371,13 +371,18 @@ if 0:
 else:
     tui.block.out('\x1b[12l\r\nEcho off\r\n')
     local_echo( sys.__stdin__.fileno(), False)
+    def cleanup():
+        tui.block.out('\x1b[12h')
+        local_echo( sys.__stdin__.fileno(), True)
 
     try:
         aio.loop.run_forever()
     except KeyboardInterrupt:
         aio.loop.call_soon( aio.loop.stop )
         aio.loop.run_forever()
-        tui.block.out('\x1b[12h')
-local_echo( sys.__stdin__.fileno(), True)
+        cleanup()
+    except RuntimeError:
+        cleanup()
+        raise
 
 

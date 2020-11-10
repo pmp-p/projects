@@ -1,4 +1,7 @@
 #!/bin/bash
+reset
+
+export LIBEXT=a
 
 . pydk-build-common.inc
 
@@ -7,6 +10,8 @@ export TOOLCHAIN_HOME=${TOOLCHAIN_HOME:-$(realpath ${PYDK}/emsdk)}
 
 #p3webgldisplay.a  pandagles2.a
 PANDA3D_CPP=""
+
+LIBVER=39
 
 for l in pandagles2.a p3openal_audio.a p3dtool.a p3dtoolconfig.a p3interrogatedb.a p3direct.a\
  pandabullet.a pandaexpress.a panda.a p3framework.a
@@ -24,8 +29,8 @@ done
 
 PANDA3D_PY=""
 
-for l in py.panda3d.interrogatedb.cpython-38-wasm.a py.panda3d.core.cpython-38-wasm.a \
- py.panda3d.bullet.cpython-38-wasm.a py.panda3d.direct.cpython-38-wasm.a
+for l in py.panda3d.interrogatedb.cpython-${LIBVER}-wasm.a py.panda3d.core.cpython-${LIBVER}-wasm.a \
+ py.panda3d.bullet.cpython-${LIBVER}-wasm.a py.panda3d.direct.cpython-${LIBVER}-wasm.a
 do
     lib=${PYDK}/wasm/build-wasm/panda3d-wasm/lib/lib${l}
     if [ -f $lib ]
@@ -87,8 +92,12 @@ function do_stdlib
         rm -rf assets/python$PYVER/lib2to3 assets/python$PYVER/site-packages
 
         echo " * overwriting with specific stdlib $PYVER platform support (zipimport)"
-        #/bin/cp -aRfvx ${PYDK}/sources.py/cpython/stdlib/python$PYVER/. assets/python$PYVER/
-        /bin/cp -aRfvx ${PYDK}/sources.py/cpython/wasm/. assets/python$PYVER/
+
+        # copy specific python platform support
+        for ver in 8 9
+        do
+            cp -Rfxpu ${PYDK}/sources.py/cpython/wasm/3.${ver}/. assets/python$PYVER/
+        done
 
         if true
         then
@@ -193,6 +202,7 @@ then
 
 # for wapy
         cp -Rfxpu ${PYDK}/wasm/build-wasm/panda3dffi-wasm/direct/ assets/packages/
+
 # for cpy
         cp -Rfxpu ${PYDK}/wasm/build-wasm/panda3d-wasm/direct/ assets/packages/
 
@@ -200,19 +210,21 @@ then
         cp -Rfxpvu ${PYDK}/sources.py/cpython/packages/. assets/packages/
 
         # copy specific python platform support
-        cp -fxpvu ${PYDK}/sources.py/cpython/wasm/*.py assets/
+        for ver in 8 9
+        do
+            #cp -Rvfxpu ${PYDK}/sources.py/cpython/wasm/3.${ver}/. assets/
+            echo "FIXME use APK-ZIP as stdlib"
+        done
 
         # copy specific C platform support
         cp -fxpvu ${PYDK}/sources.wasm/*.c ./app/src/main/cpp/
         cp -Rfxpvu ../cpywasm/*.c ../cpywasm/ffi ./app/src/main/cpp/
-
 
         # copy test framework
         cp -Rfxpvu ${PYDK}/wapy-lib/pythons ./assets/
 
         # copy readline support
         cp -fxpvu ${PYDK}/wapy-lib/readline/pyreadline.py ./assets/
-
 
         # todo move test folder with binary cmdline support into separate archive
         # until testsuite is fixed.
@@ -299,7 +311,7 @@ echo $DBG
 
 echo "================================================================="
 
-    PYLIB="$LIBDIR/libpython3.8.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
+    PYLIB="$LIBDIR/libpython${PYVER}.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
 
     em++ $DBG $EMOPTS -fpic -static -o libpp3d.bc $PANDA3D_CPP $PANDA3D_PY
 
