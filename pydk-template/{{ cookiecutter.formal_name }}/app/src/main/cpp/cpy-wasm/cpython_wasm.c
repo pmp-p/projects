@@ -106,10 +106,13 @@ main_warmup(void) {
    #include "vm_warmup.c"
 }
 
+//#include <webgl/webgl2.h>
 
 int
 main(int argc, char *argv[]) {
     //setbuf(stdout, NULL);
+
+    //printf(" emscripten_glReadBuffer = %p\n", emscripten_glReadBuffer );
 
     printf("Press ctrl+shift+i to see debug logs, or go to Menu / [more tools] / [developpers tools]\r\n");
 

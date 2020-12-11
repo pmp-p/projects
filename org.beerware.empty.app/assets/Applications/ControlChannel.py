@@ -1,5 +1,7 @@
 instance = None
 
+import importlib
+
 
 def send(io,skip=()):
     io.seek(0)
@@ -41,9 +43,38 @@ from codeop import CommandCompiler
 do_compile = CommandCompiler()
 do_compile.compiler.flags |= ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
 
+def Diff(li1, li2):
+    li_dif = [i for i in li1 + li2 if i not in li1 or i not in li2]
+    return li_dif
+
+
+import builtins
+imports = []
+importer = __import__
+
+def track_import(*argv, **kw):
+    global importer, imports
+    newm = argv[0]
+    if newm in sys.modules or newm in imports:
+        pass
+    else:
+        imports.append(newm)
+        embed.log("importing %s" % newm )
+    return importer(*argv, **kw)
+
+
 class client(irc.client):
+
+    def handle_error(self, e,code):
+        global importer
+        builtins.__import__ = importer
+        embed.log(f"REPL: code> {code}")
+        embed.log(f"REPL:Error> {e}")
+        err(e, skip=(1,2,))
+        return True
+
     async def handler(handler_self, cmd):
-        global self
+        global self, imports, importer
         if cmd[1].isnumeric():
             # server notice
             return True
@@ -53,6 +84,9 @@ class client(irc.client):
 
             code_with_rv = f'_ = {code}'
 
+            #builtins.__import__ = track_import
+            importlib.invalidate_caches()
+
             try:
                 bytecode = do_compile(code_with_rv, "<stdin>", "exec")
                 code = code_with_rv
@@ -60,13 +94,11 @@ class client(irc.client):
                 try:
                     bytecode = do_compile(code, "<stdin>", "exec")
                 except Exception as e:
-                    embed.log(f"REPL: code> {code}")
-                    embed.log(f"REPL:Error> {e}")
-                    err(e, skip=(1,2,))
-                return True
+                    return handler_self.handle_error(e, code)
 
             try:
                 func = types.FunctionType(bytecode, self.__dict__)
+                pre = list( self.__dict__.keys() )
                 maybe = func()
                 if inspect.iscoroutine(maybe):
                     maybe = await maybe
@@ -75,11 +107,13 @@ class client(irc.client):
                 else:
                     embed.log(f"REPL> {self._}")
                     out(f"REPL> {self._}")
+                embed.log("DIFF: %r" % Diff(pre, list( self.__dict__.keys() ) ) )
                 return True
             except Exception as e:
-                embed.log(f"REPL: code> {code}")
-                embed.log(f"REPL:Error> {e}")
-                err(e, skip=(1,2,))
+                sys.print_exception(e)
+                return handler_self.handle_error(e, code)
+            finally:
+                builtins.__import__ = importer
 
         print("15:",__file__,'app handler>')
         print(repr(cmd))

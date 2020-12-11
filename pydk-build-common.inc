@@ -1,4 +1,4 @@
-#sourced
+#!/bin/bash sourced
 
 APK=$1
 PYVER=${PYVER:-"3.8"}

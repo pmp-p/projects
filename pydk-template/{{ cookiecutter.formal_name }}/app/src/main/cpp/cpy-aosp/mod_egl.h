@@ -290,9 +290,6 @@ extern "C" {
 
         if (onestep) {
             rd->step();
-            LOG_E("draw 1");
-        } else {
-            LOG_E("draw 1 FAILED");
         }
     return;
 fail:
@@ -323,8 +320,6 @@ fail:
     void rd_stop(){
         renderingEnabled = false;
     }
-
-
 
 }
 

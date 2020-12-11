@@ -92,9 +92,9 @@ function do_stdlib
         echo " * overwriting with specific stdlib $PYVER platform support (zipimport)"
 
         # copy specific python platform support
-        for ver in 8 9
+        for ver in common 3.8 3.9
         do
-            cp -Rfxpu ${PYDK}/sources.py/cpython/wasm/3.${ver}/. assets/python$PYVER/
+            cp -Rfxp ${PYDK}/sources.py/cpython/wasm/${ver}/. assets/python$PYVER/
         done
 
         if true
@@ -205,7 +205,7 @@ then
         cp -Rfxpu ${PYDK}/wasm/build-wasm/panda3d-wasm/direct/ assets/packages/
 
         # copy specific python interpreter support
-        cp -Rfxpvu ${PYDK}/sources.py/cpython/packages/. assets/packages/
+        cp -Rfxpv ${PYDK}/sources.py/cpython/packages/. assets/packages/
 
         # copy specific python platform support
         echo "FIXME use APK-ZIP as stdlib"
@@ -270,50 +270,85 @@ then
         shift 1
 
 
-    if false
-    then
-
-        #black or white canvas ?
-        #EMOPTS="$EMOPTS -s OFFSCREENCANVAS_SUPPORT=1"
-
-        #FAIL Unncaught ReferenceError: GL is not defined
-        # -s FULL_ES2=1"
-
-        EMOPTS="$EMOPTS -s MIN_WEBGL_VERSION=2 -s USE_WEBGL2=1"
-        EMOPTS="$EMOPTS -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_HARFBUZZ=1 -s USE_FREETYPE=1 -s USE_OGG=1 -s USE_BULLET=1"
-        #EMOPTS="$EMOPTS -s USE_VORBIS=1"
-
-        # -s GL_DEBUG=1
-    fi
-
 EMOPTS="-s ERROR_ON_UNDEFINED_SYMBOLS=1 -s LLD_REPORT_UNDEFINED=1"
 EMOPTS="$EMOPTS -s ENVIRONMENT=web -s USE_ZLIB=1 -s SOCKET_WEBRTC=0 -s SOCKET_DEBUG=1"
 EMOPTS="$EMOPTS -s USE_ZLIB=1 -s NO_EXIT_RUNTIME=1"
 EMOPTS="$EMOPTS -s EXPORT_ALL=1"
 
-DBG="-g0 -O3 -s LZ4=0 -s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB"
+#black or white canvas ?
+#EMOPTS="$EMOPTS -s OFFSCREENCANVAS_SUPPORT=1"
+
+# NEEDED : emscripten_glReadBuffer
+EMOPTS="$EMOPTS -s USE_WEBGL2=1"
+
+# libgl-webgl2.a...
+# EMOPTS="$EMOPTS -s USE_WEBGL2=1 -s FULL_ES2=1"
+
+EMOPTS="$EMOPTS -s USE_ZLIB=1 -s USE_LIBPNG=1"
+
+# RuntimeError: abort
+# Assertion failed: Missing signature argument to addFunction: function _eglWaitGL()
+# -s USE_SDL=2
+
+#
+
+# dups !
+# -s USE_HARFBUZZ=1  -s USE_BULLET=1 -s USE_FREETYPE=1 -s USE_OGG=1
+
+
+#EMOPTS="$EMOPTS -s USE_VORBIS=1"
+
+# -s GL_DEBUG=1
+
+
+#-s FULL_ES3=1 -s MIN_WEBGL_VERSION=2
+
+
+DBG="-g1 -O2 -s LZ4=0 -s ASSERTIONS=1 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=29360128 -s TOTAL_MEMORY=512MB"
 # -s LLD_REPORT_UNDEFINED=1 --source-map-base http://localhost:8000/"
 #DBG="-g4 -O0 -s LZ4=0 -s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s TOTAL_STACK=14680064 -s TOTAL_MEMORY=512MB --source-map-base http://localhost:8000"
+
+
 
 echo "================================================================="
 echo $EMOPTS
 echo "          -------------------------------------------"
 echo $DBG
-
 echo "================================================================="
 
     PYLIB="$LIBDIR/libpython${PYVER}.a $LIBDIR/libssl.a $LIBDIR/libcrypto.a"
+if false
+then
+    em++ $DBG -s ERROR_ON_UNDEFINED_SYMBOLS=1 -s LLD_REPORT_UNDEFINED=1 -s LINKABLE=1 -s EXPORT_ALL=1 \
+ -fpic -shared -o libpp3d.so -L.\
+ ${PYDK}/wasm/build-wasm/panda3d-wasm/lib/libp3*.a \
+ ${PYDK}/wasm/build-wasm/panda3d-wasm/lib/libpa*.a \
+ $PANDA3D_PY $PYLIB
 
-    em++ $DBG $EMOPTS -fpic -static -o libpp3d.bc $PANDA3D_CPP $PANDA3D_PY
+fi
+    #em++ -fpic   -shared -o libpp3d.so  $PYLIB
 
-    emcc -s MAIN_MODULE=1 -static --memory-init-file 0 $DBG $EMOPTS \
+    #emcc $DBG $EMOPTS -fpic -static -r -o libpp3d.bc $PANDA3D_PY libp3d.bc
+
+echo "
+PYLIB=$PYLIB
+
+PANDA3D_CPP=$PANDA3D_CPP
+
+PANDA3D_PY=$PANDA3D_PY
+=================================================================
+
+"
+
+    emcc -s MAIN_MODULE=1 --memory-init-file 0 $DBG $EMOPTS \
  -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["ccall", "cwrap", "getValue", "stringToUTF8"]' \
  -I${INCDIR} -I${INCDIR}/python${PYVER} \
  --preload-file ./assets\
  --preload-file ./lib\
  --preload-file python${PYVER}.zip\
- -o python.html ./app/src/main/cpp/pythonsupport.c\
- -L. libpp3d.bc $PYLIB\
+ -o python.html ./app/src/main/cpp/pythonsupport.c \
+ $PANDA3D_CPP $PANDA3D_PY $PYLIB \
+ -L. \
  -L${LIBDIR} -lbullet -logg -lvorbisfile -lvorbis -lfreetype -lharfbuzz
 
         if echo $@|grep -q build

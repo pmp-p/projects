@@ -15,6 +15,11 @@ EM_JS(void, js_jseval, (char* str), {
   return;
 });
 
+EM_JS(int, js_jsint, (char* str), {
+  return eval(UTF8ToString(str)) || 0 ;
+});
+
+
 EM_JS(int, js_getc, (), {
     if (!window.stdin.length)
         return 0;
@@ -24,7 +29,7 @@ EM_JS(int, js_getc, (), {
 });
 
 EM_JS(void, js_demux_fd, (int fdno, char * str), {
-    vm.stdio_process(fdno, UTF8ToString(str));
+    window.vm.stdio_process(fdno, UTF8ToString(str));
 });
 
 //vm.aio.demux_fd(UTF8ToString(str));
@@ -79,6 +84,17 @@ embed_js_eval(PyObject * self, PyObject * args) {
 }
 
 static PyObject *
+embed_js_int(PyObject * self, PyObject * args) {
+    char *str = NULL;
+    if (!PyArg_ParseTuple(args, "s", &str)) {
+        return NULL;
+    }
+    return Py_BuildValue("i", js_jsint(str));
+}
+
+
+
+static PyObject *
 embed_js_demux_fd(PyObject * self, PyObject * args) {
     int fdnum = -1;
     char *str = NULL;
@@ -113,15 +129,62 @@ embed_exit(PyObject * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+#define PANDA3D 1
+
+
+#if PANDA3D
+// Panda3D entry points.
+
+PyMODINIT_FUNC PyInit_core(void);
+
+PyMODINIT_FUNC PyInit_direct(void);
+
+//extern void init_libwebgldisplay();
+
+static PyObject *
+embed_panda3d(PyObject * self, PyObject * args) {
+    PyObject *module;
+
+    module = PyInit_core();
+    if (module)
+        PyDict_SetItemString(PyImport_GetModuleDict(), "panda3d.core", module);
+
+    //PyDict_SetItemString( PyModule_GetDict(module) , "__name__", PyUnicode_FromString("panda3d.core") );
+
+    PyRun_SimpleString("print(sys.modules['panda3d.core'],file=sys.stderr)\n"
+                       "panda3d.core = sys.modules['panda3d.core']\n"
+                       "embed.log('panda3d.core == %s' % panda3d.core)\n"
+                       "embed.log('panda3d.core.__name__ %s' % panda3d.core.__name__)\n");
+
+    module = PyInit_direct();
+    if (module)
+        PyDict_SetItemString(PyImport_GetModuleDict(), "panda3d.direct", module);
+
+    PyRun_SimpleString("print(sys.modules['panda3d.direct'],file=sys.stderr)\n"
+                       "panda3d.direct = sys.modules['panda3d.direct']\n"
+                       "embed.log('panda3d.direct == %s' % panda3d.direct)\n"
+                       "embed.log('panda3d.direct.__name__ %s' % panda3d.direct.__name__)\n" "print('='*80, file=sys.stderr)\n");
+
+    //init_libwebgldisplay();
+    Py_RETURN_NONE;
+}
+
+#endif
+
+
 static PyMethodDef embed_funcs[] = {
     {"log", embed_log, METH_VARARGS, "Log on browser console only"},
     {"select", embed_select, METH_VARARGS, "select on non blocking io stream"},
-    {"jseval", embed_js_eval, METH_VARARGS, "embed_js_eval"},
+    {"js_eval", embed_js_eval, METH_VARARGS, "embed_js_eval"},
+    {"js_int", embed_js_int, METH_VARARGS, "embed_js_int"},
     {"demux_fd", embed_js_demux_fd, METH_VARARGS, "I/O demux"},
     {"stdio_append", embed_stdio_append, METH_VARARGS, "write to fd, stream" },
     {"prompt_request", embed_prompt_request,METH_VARARGS, "prompt"},
     {"getc", embed_getc, METH_VARARGS, "getc"},
     {"exit", embed_exit, METH_VARARGS, "exit emscripten"},
+#if PANDA3D
+    {"panda3d", embed_panda3d, METH_VARARGS, "p3d"},
+#endif
     {NULL, NULL, 0, NULL}
 };
 
@@ -140,11 +203,7 @@ embed_init(void) {
     return embed_mod;
 }
 
-// Panda3D entry points.
 
-PyMODINIT_FUNC PyInit_core(void);
-
-PyMODINIT_FUNC PyInit_direct(void);
 
 
 

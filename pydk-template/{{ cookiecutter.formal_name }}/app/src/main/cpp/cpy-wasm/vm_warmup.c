@@ -3,19 +3,23 @@
 
 LOG_I("VMthread starting");
 
+    setlocale(LC_ALL, "C.UTF-8");
+
 
     setenv("PYTHONHOME", "/", 1);
     setenv("PYTHONDONTWRITEBYTECODE", "1", 1);
     setenv("PYTHONINSPECT", "1",0);
     setenv("PYTHONUNBUFFERED","1",1);
     setenv("PYTHONOPTIMIZE", "No",1);
-    setenv("PYTHONCOERCECLOCALE", "1", 1);
     setenv("PYTHONUNBUFFERED", "1", 1);
+    setenv("PYTHONUTF8", "1", 1);
+    setenv("PYTHONCOERCECLOCALE", "1", 1);
+
+    setenv("APK", "python{{ cookiecutter.pyver }}.zip" , 1 );
 
 
-    //Py_SetProgramName((const wchar_t *)"python3.8");
+    Py_SetProgramName((const wchar_t *)"python{{ cookiecutter.pyver }}");
 
-    setlocale(LC_ALL, "C.UTF-8");
 
     // add our support module
     PyImport_AppendInittab("embed", embed_init);

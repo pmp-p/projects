@@ -55,6 +55,9 @@ set_target_properties(python3 PROPERTIES IMPORTED_LOCATION ${PREBUILT}/lib${PYTH
 set_target_properties(python3 PROPERTIES IMPORTED_NO_SONAME ON)
 
 
+add_library(SDL2 SHARED IMPORTED )
+set_target_properties(SDL2 PROPERTIES IMPORTED_LOCATION ${PREBUILT}/libSDL2.so)
+
 # Include libraries needed for rmipython lib
 target_link_libraries(rmipython
                     android
@@ -68,6 +71,7 @@ target_link_libraries(rmipython
                     crypto
                     brokenthings
                     python3
+                    SDL2
                     GLESv2
                     GLESv1_CM
                     EGL

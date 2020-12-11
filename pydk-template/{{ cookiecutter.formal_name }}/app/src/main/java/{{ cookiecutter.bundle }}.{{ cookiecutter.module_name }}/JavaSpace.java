@@ -6,12 +6,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Hashtable;
+import java.util.HashMap;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 /* json ... is not well suited for all primitive types : maybe switch to C-cbor later
 
 import jacob.*;
@@ -23,6 +25,10 @@ python counter parts
     cbor https://github.com/brianolson/cbor_py/blob/master/cbor/cbor.py
     cbor2 https://github.com/agronholm/cbor2
 
+
+https://stackoverflow.com/questions/15472383/how-can-i-run-code-on-a-background-thread-on-android
+
+
 */
 
 
@@ -31,8 +37,11 @@ class HPyContext {
     public android.content.Context self;
 //    public androidx.constraintlayout.widget.ConstraintLayout ui ;
     public android.widget.RelativeLayout ui;
-    // not synchronized !
+
     public Hashtable<String, Object> mem;
+
+// not synchronized !
+    public HashMap<String, Object> buf;
 }
 
 
@@ -40,6 +49,12 @@ class JavaSpace {
 
 
     Gson gson = new Gson();
+// https://stackoverflow.com/questions/8360836/gson-is-there-an-easier-way-to-serialize-a-map
+    Gson json = new GsonBuilder()
+        .enableComplexMapKeySerialization()
+        .serializeNulls()
+        .setPrettyPrinting()
+        .create();
 
 
     public static String TAG;
@@ -53,6 +68,7 @@ class JavaSpace {
         this.ctx.self = the_self;
         this.ctx.ui = ui;
         this.ctx.mem = new Hashtable<String, Object>();
+        this.ctx.buf = new HashMap<String, Object>();
         //this.ctx.mem.put("v:null:0",null);
         return this.ctx;
     }
@@ -66,6 +82,17 @@ class JavaSpace {
         this.ctx.mem.put(key, instance );
         return key;
     }
+
+    public void push(String key, Object value) {
+        ctx.buf.put( key, value );
+    }
+
+    public String flush_json() {
+        String result = json.toJson(ctx.buf);
+        ctx.buf.clear();
+        return result;
+    }
+
 
     // "ffi" like approach
 
@@ -129,7 +156,7 @@ class JavaSpace {
 
             score++;
             if (pdecl[i].isAssignableFrom(preq[i])) {
-                Log.i(TAG,"    ok ("+ pdecl[i].getName() + ")" + preq[i].getName()) ;
+                //Log.i(TAG,"    ok ("+ pdecl[i].getName() + ")" + preq[i].getName()) ;
                 continue;
             }
 
@@ -177,6 +204,7 @@ class JavaSpace {
         }
 
         int sz = matches.size() -1 ;
+
         if (sz == 0 ) {
             Log.i(TAG, "  MATCHED >> "+method_name+"(" + ffi_sign + ")" );
             return matches.get( sz );
@@ -205,7 +233,7 @@ class JavaSpace {
 
         String ffi_sign = ffi_signature(pt,argv);
 
-        Log.i(TAG, "  ffi_call-search >> "+ cls_name +"."+method_name+"('"+ ffi_sign +"')");
+//        Log.i(TAG, "  ffi_call-search >> "+ cls_name +"."+method_name+"('"+ ffi_sign +"')");
 //FIXME: convert d=>i here
 
         Method method =  ffi_method(cls, instance, method_name , ffi_sign, pt);
@@ -221,11 +249,11 @@ class JavaSpace {
 
             // some members could be static ( regardless of instance being null or not ? )
             if (Modifier.isStatic(method.getModifiers())) {
-Log.i(TAG,"staticmethod: " + cls.getName() +"."+method_name+"('"+ ffi_sign +"') =>" + ret_type);
+//Log.i(TAG,"staticmethod: " + cls.getName() +"."+method_name+"('"+ ffi_sign +"') =>" + ret_type);
                 ret_val = method.invoke(null, argv);
             } else {
                 if (instance!=null) {
-Log.i(TAG,"instancemethod: (" + cls.getName() +")instance."+method_name+"("+ argv +") => " + ret_type );
+//Log.i(TAG,"instancemethod: (" + cls.getName() +")instance."+method_name+"("+ argv +") => " + ret_type );
                     ret_val = method.invoke(instance, argv);
                 } else // that one must raise an exception on remote end.
                     Log.e(TAG, "instance call with null instance !");
@@ -240,12 +268,12 @@ Log.i(TAG,"instancemethod: (" + cls.getName() +")instance."+method_name+"("+ arg
         catch (IllegalArgumentException e) {
             e.printStackTrace();
         }
-
+/*
         if (ret_val == null)
             Log.i(TAG,"  call = void");
         else
             Log.i(TAG,"  call = " + ret_val.toString());
-
+*/
         return ret_val; // TODO: return exception frame matching the problem.
     }
 
@@ -355,7 +383,7 @@ for (Object o:stack)
             Class<?> pt[] = new Class[al.size()];
             Object[] stack =  new Object[al.size()];
             convert_call_stack(ctx, al.toArray(), pt, stack);
-            Log.e(TAG, "ffi fq call : " + ct + " on "+ cn+"(instance)."+method);
+Log.e(TAG, "ffi fq call : " + ct + " on "+ cn+"(instance)."+method);
             retval = ffi_call(cn, instance, method, stack );
 
         } else if (ct==2) {
@@ -363,7 +391,7 @@ for (Object o:stack)
             Class<?> pt[] = new Class[al.size()];
             Object[] stack =  new Object[al.size()];
             convert_call_stack(ctx, al.toArray(), pt, stack);
-            Log.e(TAG, "ffi instance call : " + ct + " on "+instance +"."+method);
+//Log.e(TAG, "ffi instance call : " + ct + " on "+instance +"."+method);
             retval = ffi_call("", instance, method, stack );
 
         } else
@@ -411,13 +439,13 @@ for (Object o:stack)
                 this.ctx.mem.put( retser[1], retval );
                 Log.i(TAG,"RESULT #"+retser[0]+" stored,need GC : " + retser[1]);
             } else {
-                Log.i(TAG,"RESULT #"+retser[0]+" primitive type : " + retser[1]);
+//Log.i(TAG,"RESULT #"+retser[0]+" primitive type : " + retser[1]);
             }
 
         } else {
             // nullptr => None
             retser[1] = "v:null:0";
-            Log.i(TAG,"RESULT #"+retser[0]+" v:null:0 -> None");
+            //Log.i(TAG,"RESULT #"+retser[0]+" v:null:0 -> None");
         }
         return gson.toJson(retser);
     }
@@ -431,7 +459,7 @@ for (Object o:stack)
 //Log.i(MainActivity.TAG,"asyncresult : " + rv[i] );
             i++;
         }
-Log.i(MainActivity.TAG,"/plink");
+//Log.i(MainActivity.TAG,"/plink");
         return rv;
     }
 

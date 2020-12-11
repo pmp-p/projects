@@ -5,20 +5,28 @@ FILE *file = stdio_pipes[0];
 if ( !fseek(file, 0L, SEEK_END) ) {
     if ( ftell(file) ) {
         rewind(file);
-#if 0
+
+        PyRun_SimpleString("sys.stdout.flush()\n");
+
+#if 1
 
 #define MAX 1024
 char buf[MAX];
 int line =  0;
         fprintf(stderr,"INPUT:\n");
         while( fgets(&buf[0], MAX, file) ) {
-            fprintf( stderr, "%d: %s",++line, buf );
+            //fprintf( stderr, "%d: %s",++line, buf );
+            ++line;
         }
 #undef MAX
         rewind(file);
 #endif
-        PyRun_SimpleString("sys.stdout.flush()\n");
-        int res = PyRun_InteractiveOne( file, "<stdin>");
+        int res = 0;
+        if (line>1) {
+            res = PyRun_SimpleFile( file, "<stdin>");
+        } else {
+            res = PyRun_InteractiveLoop( file, "<stdin>");
+        }
 
         if ( prompt_request ) {
             PyRun_SimpleString("sys.stdout.flush();embed.demux_fd(1,'\\r++> ')\n");

@@ -237,6 +237,19 @@ private static String getDeviceCountryCode(Context context) {
         return nwin;
     }
 
+    public String viewport(View view) {
+        jspy.push("class", "surface" );
+        jspy.push("x", (int)view.getX() );
+        jspy.push("y", (int)view.getY() );
+        jspy.push("width", (int)view.getWidth() );
+        jspy.push("height", (int)view.getHeight() );
+
+        String result = jspy.flush_json() ;
+        Log.v(MainActivity.TAG, "surface:" + result );
+        return result;
+    }
+
+
     public int get_x(View view) {
         return (int)view.getX();
     }
@@ -571,7 +584,7 @@ private static String getDeviceCountryCode(Context context) {
         // if busy don't multiply pending runnables.
 
         if (jobs_processing>0) {
-            android.util.Log.i(MainActivity.TAG, "AIO UI is busy");
+            //android.util.Log.i(MainActivity.TAG, "AIO UI is busy");
             return ;
         }
 

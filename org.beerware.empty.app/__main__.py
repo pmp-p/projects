@@ -59,14 +59,10 @@ sys.path.append('/data/git/aioprompt')
 sys.path.append('/data/git/wapy-lib/cpython-usocket')
 sys.path.append('/data/git/aiovm')
 
-
-
-print(sys.path)
-#raise SystemExit
-
+#print(sys.path)
 
 # to get the one from site-packages
-import panda3d
+# import panda3d
 
 import pythons
 import pythons.aio
@@ -136,6 +132,9 @@ if 0:
     raise SystemExit
 
 if 0:
+
+    # byterun test
+
     sys.path.append('/data/git/x-python')
 
     print("\n"*8)
@@ -237,98 +236,15 @@ if 0:
             except SystemExit:
                 sys.exit(0)
 
-
-
     aioprompt.inputprompt = "$$❯ "
     aioprompt.inputindent = len(aioprompt.inputprompt)
     aioprompt.inputhook = inputhook
 
-import pyreadline
-import select
-
-
-try:
-    from pyreadtouch import ReadTouch
-except Exception as e:
-    pdb("19: no touch support from pyreadtouch : {}".format((e)))
-    class ReadTouch:
-        def process_touch(self,*a,**k):
-            pass
-
-class ReadInput(pyreadline.ReadLine, ReadTouch, aio.runnable):
-    MB = {
-       'B' : '',
-       'C':  0,
-        0 : 'L',
-        1 : 'M',
-        2 : 'R',
-        3 : '',
-        'D' : { '':'' },
-    }
-
-    def putc(self, c):
-        oldbuf  = len(self.line)
-        oldpos = self.caret
-        print(end='\r')
-        if c==13:
-            with open("dev/fd/0","w") as f:
-                f.write(self.line+"\n")
-            print('>>>', self.line,end='\r\n')
-        else:
-            print(' ' * (oldbuf+4) , end="\r")
-
-        self.process_char( bytes( [c] ) )
-
-        if c==13:
-            embed.run('dev/fd/0')
-            print()
-
-        print('$>>', self.line, end='')
-
-        if oldpos > self.caret:
-            #embed.log('cursor move left %s > %s' % (oldpos,self.caret) )
-            print('\r', end='\x1b[C' * (self.caret+4) )
-        elif self.caret < len(self.line):
-            #embed.log('cursor move right %s > %s %s' % (oldpos,self.caret,len(self.line)) )
-            print('\r', end='\x1b[C' * (self.caret+4) )
-
-        sys.stdout.flush()
-
-
-    def getc(self):
-        key=b''
-        if select.select([sys.__stdin__,],[],[],0.0)[0]:
-            if self.kbuf:
-                key = self.kbuf[0:1]
-                self.kbuf = self.kbuf[1:]
-            else:
-                key = os.read(0, 32)
-        return key
-
-
-    async def run(self, fd, **kw):
-        aio.inputs[fd] = self
-        self.kbuf = []
-        aio.proc(self).rt(2)
-
-        #while not (await aio.proc(self)):
-        while not (await self):
-            c=self.getc()
-            if c:
-                print("316:",c)
-
-        #    __UPY__
-        #    def getc():
-        #        if not select.select([sys.stdin,],[],[],0.0)[0]:
-        #            return None
-        #         key = select.readall(sys.stdin)
-
-        #    if not msvcrt.kbhit():
-        #        return None
+    # this one automatically handle aio loop, but linux only
+    import aiovm.repl as repl
 
 
 #============================= main ==============================
-
 
 # menu bar
 import aiovm.tui as tui
@@ -343,13 +259,17 @@ def test():
 
 builtins.test = test
 
-#sys.ps1 = ""
-#aio.run( main(0,[],{}) )
+
+class AppStepper(aio.Runnable):
+
+    async def run(self, frametime, *argv, **kw):
+        aio.proc(self).rt(frametime)
+        del frametime
+        while not (await self):
+            python3.on_step(Applications, python3)
 
 
-aio.inputs = {  }
-
-aio.service( ReadInput() , 0 )
+aio.service( AppStepper(), .016 )
 
 
 def local_echo(fd, enabled):
@@ -365,24 +285,27 @@ def local_echo(fd, enabled):
     termios.tcsetattr(fd, termios.TCSANOW, new_attr)
 
 
-if 0:
-    # this one automatically handle aio loop
-    import aiovm.repl as repl
-else:
-    tui.block.out('\x1b[12l\r\nEcho off\r\n')
-    local_echo( sys.__stdin__.fileno(), False)
-    def cleanup():
-        tui.block.out('\x1b[12h')
-        local_echo( sys.__stdin__.fileno(), True)
+import pythons.aio.cpy.repl
 
-    try:
-        aio.loop.run_forever()
-    except KeyboardInterrupt:
-        aio.loop.call_soon( aio.loop.stop )
-        aio.loop.run_forever()
-        cleanup()
-    except RuntimeError:
-        cleanup()
-        raise
+# reserve some lines for logs
+# scroll region
+tui.block.top = 16
 
+local_echo( sys.__stdin__.fileno(), False)
+
+def cleanup():
+    tui.block.out('\x1b[12h')
+    tui.block.out('\x1b[r')
+    local_echo( sys.__stdin__.fileno(), True)
+
+try:
+    aio.loop.run_forever()
+except KeyboardInterrupt:
+    aio.loop.call_soon( aio.loop.stop )
+    aio.loop.run_forever()
+except RuntimeError:
+    cleanup()
+    raise
+
+cleanup()
 

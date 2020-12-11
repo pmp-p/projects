@@ -410,7 +410,7 @@ VMthread(void* context) {
 
     static int init_egl_done = 0;
 
-    while(1) {
+    while (1) {
 
         static unsigned long steps = 0;
 
